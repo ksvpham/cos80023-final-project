@@ -1,5 +1,5 @@
 ############################################################
-# COS80023 – HD Project
+# COS80023 – D/HD Project
 # 01_data_cleaning.R
 #
 # Purpose:
