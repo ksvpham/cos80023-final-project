@@ -247,10 +247,10 @@ ggsave("output/plots/kmeans_severity_by_cluster.png",
        plot = severity_plot, width = 7, height = 5, dpi = 300)
 
 
-## 10. Crash density heatmap over Victoria --------
+## 10. Crash density heatmap over Victoria ------------------
 
-ggplot(crash_with_clusters,
-       aes(x = longitude, y = latitude)) +
+density_plot <- ggplot(crash_with_clusters,
+                       aes(x = longitude, y = latitude)) +
   geom_density_2d_filled(contour_var = "ndensity", alpha = 0.8) +
   facet_wrap(~ cluster) +
   coord_sf(
@@ -261,9 +261,16 @@ ggplot(crash_with_clusters,
   scale_fill_viridis_d(option = "inferno") +
   labs(
     title = "Crash density by cluster across Victoria",
-    x = "Longitude", y = "Latitude"
+    x = "Longitude",
+    y = "Latitude",
+    fill = "Relative density"
   ) +
   theme_minimal()
+
+print(density_plot)
+
+ggsave("output/plots/kmeans_crash_density_by_cluster.png",
+       plot = density_plot, width = 8, height = 6, dpi = 300)
 
 
 ## 11. Save clustering outputs ------------------------------
