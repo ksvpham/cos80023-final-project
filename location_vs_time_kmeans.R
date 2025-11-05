@@ -94,7 +94,7 @@ ggplot(location_grouped, aes(x = ACCIDENT_TIME, y = total_accidents,
   scale_x_continuous(breaks = seq(0, 24, 2)) +
   theme_minimal() +
   labs(
-    title = "Accident Frequency by Time of Day (location + Time Clusters)",
+    title = "Accident Frequency by Time of Day (Location + Time Clusters)",
     x = "Time of Day (Hour)",
     y = "Number of Accidents",
     color = "Cluster"
