@@ -34,7 +34,7 @@ atmospheric_wide <- atmospheric_wide %>%
 atmospheric_wide <- atmospheric_wide %>%
   select(-c(ATMOSPH_COND, ATMOSPH_COND_SEQ))
 
-# --- Collapse duplicates by time & weather; one row per time ---
+# Collapse duplicates by time & weather; one row per time
 # Identify the weather condition (one-hot) columns
 cond_cols <- setdiff(names(atmospheric_wide), c("ACCIDENT_NO", "ACCIDENT_TIME"))
 
@@ -69,7 +69,7 @@ plot(1:k_max, wss, type = "b", pch = 19,
      main = "Elbow Plot (K-means on Weather + Time)")
 
 
-# --- Run K-means with chosen k ---
+# Run K-means with chosen k 
 set.seed(42)
 
 # Numeric feature matrix
@@ -82,11 +82,11 @@ kmeansresult1 <- kmeans(X, centers = 2, nstart = 25)
 # Add cluster labels back
 atmospheric_grouped$cluster <- kmeansresult1$cluster
 
-# --- Prepare data for plotting ---
+# Prepare data for plotting 
 # Compute total number of accidents per time
 atmospheric_grouped$total_accidents <- rowSums(atmospheric_grouped %>% select(-ACCIDENT_TIME, -cluster))
 
-# --- Plot ---
+#  Plot 
 ggplot(atmospheric_grouped, aes(x = ACCIDENT_TIME, y = total_accidents,
                                 color = as.factor(cluster))) +
   geom_point(size = 2) +
@@ -99,6 +99,8 @@ ggplot(atmospheric_grouped, aes(x = ACCIDENT_TIME, y = total_accidents,
     y = "Number of Accidents",
     color = "Cluster"
   )
+
+# Summary of each cluster
 
 cluster_summary <- atmospheric_grouped %>%
   group_by(cluster) %>%
@@ -113,6 +115,8 @@ cluster_summary <- atmospheric_grouped %>%
 
 cluster_summary
 
+# Weather conditions in each cluster
+
 weather_cols <- setdiff(names(atmospheric_grouped), c("ACCIDENT_TIME", "cluster", "total_accidents"))
 
 weather_summary <- atmospheric_grouped %>%
@@ -121,6 +125,7 @@ weather_summary <- atmospheric_grouped %>%
 
 weather_summary
 
+# Combine it all together
 summary_combined <- cluster_summary %>%
   left_join(weather_summary, by = "cluster")
 
