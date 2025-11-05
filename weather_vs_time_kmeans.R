@@ -7,7 +7,7 @@ library(ggplot2)
 atmospheric <- read.csv("datasets/atmospheric_cond.csv")
 accident <- read.csv("datasets/accident.csv")
 
-# Add a dummy value (e.g., 1) so we can fill the new columns
+# Fill the new columns
 atmospheric$value <- 1
 
 # Pivot the rows into columns

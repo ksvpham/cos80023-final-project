@@ -75,11 +75,11 @@ plot(1:k_max, wss, type = "b", pch = 19,
 set.seed(42)
 
 # 1) Work on rows with valid time only
-rg <- road_grouped %>% 
+rg_total <- road_grouped %>% 
   filter(!is.na(ACCIDENT_TIME))
 
 # 2) Build numeric feature matrix and drop zero-variance columns
-X_rs <- rg %>%
+X_rs <- rg_total %>%
   select(where(is.numeric)) %>%
   select(where(~ sd(.x, na.rm = TRUE) > 0)) %>%  # avoid sd=0 -> NaN after scale()
   scale()
@@ -93,16 +93,16 @@ if (any(!is.finite(X_rs))) {
 kmeans_rs <- kmeans(X_rs, centers = 2, nstart = 25)
 
 # 5) Attach clusters back to the filtered data
-rg$cluster <- kmeans_rs$cluster
+rg_total$cluster <- kmeans_rs$cluster
 
 # 6) Total accidents per time (sum of all one-hots)
-rg$total_accidents <- rowSums(
-  rg %>% select(-ACCIDENT_TIME, -cluster),
+rg_total$total_accidents <- rowSums(
+  rg_total %>% select(-ACCIDENT_TIME, -cluster),
   na.rm = TRUE
 )
 
 # 7) Plot (same style as your weather plot)
-ggplot(rg, aes(x = ACCIDENT_TIME, y = total_accidents,
+ggplot(rg_total, aes(x = ACCIDENT_TIME, y = total_accidents,
                color = as.factor(cluster))) +
   geom_point(size = 2) +
   geom_line(aes(group = cluster), alpha = 0.4) +
@@ -116,7 +116,7 @@ ggplot(rg, aes(x = ACCIDENT_TIME, y = total_accidents,
   )
 
 # 8) Summaries (same structure as weather)
-cluster_summary_rs <- rg %>%
+cluster_summary_rs <- rg_total %>%
   group_by(cluster) %>%
   summarise(
     total_points  = n(),
@@ -127,8 +127,8 @@ cluster_summary_rs <- rg %>%
     .groups = "drop"
   )
 
-rs_cols <- setdiff(names(rg), c("ACCIDENT_TIME", "cluster", "total_accidents"))
-surface_summary_rs <- rg %>%
+rs_cols <- setdiff(names(rg_total), c("ACCIDENT_TIME", "cluster", "total_accidents"))
+surface_summary_rs <- rg_total %>%
   group_by(cluster) %>%
   summarise(across(all_of(rs_cols), ~ sum(.x, na.rm = TRUE)), .groups = "drop")
 
