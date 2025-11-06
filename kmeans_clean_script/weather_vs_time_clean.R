@@ -93,7 +93,7 @@ cluster_summary <- df %>%
 print(cluster_summary)
 
 # ------------------------------------------------------------
-# 🌦️ Weather composition per cluster (sum of scaled one-hots)
+# Weather composition per cluster (sum of scaled one-hots)
 # ------------------------------------------------------------
 weather_summary <- df %>%
   group_by(cluster) %>%
