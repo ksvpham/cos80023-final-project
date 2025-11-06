@@ -20,6 +20,8 @@
 
 library(tidyverse)
 library(lubridate)
+library(stringr)
+library(forcats)
 
 getwd()
 
@@ -63,18 +65,30 @@ crash_features <- crash_clean %>%
                          levels = c("Summer", "Autumn", "Winter", "Spring"))
   )
 
-
 ## 3. Feature engineering – environment & context ------------
 
-# Use existing columns from crash_clean
+recode_road_surface <- function(x) {
+  x <- x %>% str_trim() %>% str_squish() %>% str_to_title()
+  x <- dplyr::case_when(
+    str_detect(x, "^Dry") ~ "Dry",
+    str_detect(x, "^Wet") ~ "Wet",
+    str_detect(x, regex("unk",  ignore_case = TRUE)) ~ "Unk.",
+    str_detect(x, regex("ice",  ignore_case = TRUE)) ~ "Icy",
+    str_detect(x, regex("mud",  ignore_case = TRUE)) ~ "Muddy",
+    str_detect(x, regex("snow", ignore_case = TRUE)) ~ "Snowy",
+    TRUE ~ x
+  )
+  factor(x, levels = c("Dry","Wet","Unk.","Icy","Muddy","Snowy"))  # lock levels
+}
+
 crash_features <- crash_features %>%
   mutate(
     weather      = factor(weather),
-    road_surface = factor(road_surface),
-    severity     = factor(severity)   # for classification later
+    road_surface = recode_road_surface(road_surface),
+    severity     = factor(severity)
   )
 
-# Context columns that exist in crash_clean
+# Context columns (unchanged)
 context_cols <- c("speed_zone", "node_type", "lga_name",
                   "deg_urban_name", "postcode_crash")
 context_cols <- context_cols[context_cols %in% names(crash_features)]
@@ -99,21 +113,33 @@ cluster_base <- crash_features %>%
   drop_na(latitude, longitude, accident_hour, time_of_day, weather, road_surface)
 
 # Factors vs numeric split
-cluster_factors <- cluster_base %>%
-  select(time_of_day, weather, road_surface)
+cluster_factors <- cluster_base %>% select(time_of_day, weather, road_surface)
+cluster_numeric  <- cluster_base %>% select(accident_no, latitude, longitude, accident_hour)
 
-cluster_numeric <- cluster_base %>%
-  select(accident_no, latitude, longitude, accident_hour)
+# One-hot encode ALL levels (no intercept)
+dummy_mat <- model.matrix(~ . + 0, data = cluster_factors) %>% as_tibble()
 
-dummy_mat <- model.matrix(~ time_of_day + weather + road_surface,
-                          data = cluster_factors) %>%
-  as_tibble() %>%
-  select(-`(Intercept)`)
+# --- Ensure a clean road_surfaceDry column exists -------------------------
+# 1) Normalise any dots in names (e.g., "Unk." often becomes "Unk.")
+names(dummy_mat) <- gsub("\\.+$", "", names(dummy_mat))   # drop trailing dots
+names(dummy_mat) <- gsub("\\.+", "_", names(dummy_mat))   # internal dots -> _
 
-cluster_for_scale <- bind_cols(
-  cluster_numeric,
-  dummy_mat
-)
+# 2) If model.matrix didn’t emit road_surfaceDry, create it explicitly
+if (!"road_surfaceDry" %in% names(dummy_mat)) {
+  # Create it from the original factor
+  dummy_mat$road_surfaceDry <- as.integer(as.character(cluster_factors$road_surface) == "Dry")
+}
+
+# (Optional) Ensure the rest of road_surface dummies exist too
+for (lev in c("Wet","Unk.","Icy","Muddy","Snowy")) {
+  col <- paste0("road_surface", gsub("\\.", "", lev))  # "Unk." -> "Unk"
+  if (!col %in% names(dummy_mat)) {
+    dummy_mat[[col]] <- as.integer(as.character(cluster_factors$road_surface) == lev)
+  }
+}
+
+# Bind with numeric columns
+cluster_for_scale <- bind_cols(cluster_numeric, dummy_mat)
 
 glimpse(cluster_for_scale)
 
@@ -147,6 +173,8 @@ model_input <- crash_features %>%
     all_of(context_cols)
   ) %>%
   drop_na(severity)
+
+
 
 ## 7. Save processed outputs --------------------------------
 
