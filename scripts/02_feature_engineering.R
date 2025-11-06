@@ -106,7 +106,7 @@ crash_features <- crash_features %>%
 cluster_base <- crash_features %>%
   select(
     accident_no, latitude, longitude, accident_hour,
-    time_of_day, weather, road_surface
+    time_of_day, weather, road_surface, deg_urban_name
   ) %>%
   drop_na(latitude, longitude, accident_hour, time_of_day, weather, road_surface)
 
@@ -131,7 +131,27 @@ dummy_time    <- mk_dummies(cluster_factors$time_of_day,  time_lvls,    "time_of
 dummy_weather <- mk_dummies(cluster_factors$weather,      weather_lvls, "weather")
 dummy_road    <- mk_dummies(cluster_factors$road_surface, road_lvls,    "road_surface")
 
-dummy_mat <- bind_cols(dummy_time, dummy_weather, dummy_road)
+# --- Deg_urban_name dummies (handles any level names safely) ---
+safe_name <- function(x) {
+  x %>%
+    stringr::str_trim() %>% stringr::str_squish() %>% stringr::str_to_title() %>%
+    stringr::str_replace_all("[^A-Za-z0-9]+", "_") %>%
+    stringr::str_replace_all("^_+|_+$", "")
+}
+
+deg_vals_raw   <- as.character(cluster_base$deg_urban_name)
+deg_vals_clean <- stringr::str_to_title(stringr::str_squish(deg_vals_raw))
+deg_lvls       <- sort(unique(deg_vals_clean[!is.na(deg_vals_clean)]))
+deg_lvls_safe  <- safe_name(deg_lvls)
+
+dummy_deg_list <- lapply(seq_along(deg_lvls), function(i) {
+  as.integer(deg_vals_clean == deg_lvls[i])
+})
+names(dummy_deg_list) <- paste0("deg_urban_", deg_lvls_safe)
+
+dummy_deg <- tibble::as_tibble(dummy_deg_list)
+
+dummy_mat <- bind_cols(dummy_time, dummy_weather, dummy_road, dummy_deg)
 
 # Bind with numeric columns
 cluster_for_scale <- bind_cols(cluster_numeric, dummy_mat)
