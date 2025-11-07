@@ -17,8 +17,8 @@
 ## 0. Setup -------------------------------------------------
 
 library(tidyverse)
-library(sf)        
-library(ozmaps)   
+library(sf)
+library(ozmaps)
 
 getwd()
 
@@ -75,9 +75,9 @@ ggsave("output/plots/kmeans_elbow_plot.png",
 ## 3. Fit final K-means model -------------------------------
 
 # Choose k based on the elbow plot.
-optimal_k <- 6
+optimal_k <- 6   # NOTE: change this if elbow suggests a different k
 
-set.seed(123)   # for reproducibility
+set.seed(123)    # for reproducibility
 
 kmeans_fit <- kmeans(
   x       = cluster_mat,
@@ -96,21 +96,22 @@ cluster_with_labels %>%
   count(cluster)
 
 
-## 4. Join clusters back to full crash data -----------------
+## 4. Attach clusters to full crash data --------------------
 
 # Load the richer feature set for interpretation / mapping
 model_input <- read_rds("output/processed/model_input.rds")
 
-# Join on accident_no
-# Note: some accident_no values appear multiple times (e.g. multiple nodes),
-# so a many-to-many relationship is expected here.
+# IMPORTANT:
+# Because model_input and cluster_scaled both come from the same
+# crash_features object (and we never re-ordered rows), we can
+# safely align by row position instead of joining by accident_no.
+stopifnot(
+  nrow(model_input) == nrow(cluster_with_labels),
+  identical(model_input$accident_no, cluster_with_labels$accident_no)
+)
+
 crash_with_clusters <- model_input %>%
-  inner_join(
-    cluster_with_labels %>%
-      select(accident_no, cluster),
-    by = "accident_no",
-    relationship = "many-to-many"
-  )
+  mutate(cluster = cluster_with_labels$cluster)
 
 # Check structure
 glimpse(crash_with_clusters)
@@ -258,7 +259,6 @@ density_plot <- ggplot(crash_with_clusters,
     ylim = c(-39.2, -33.9),
     expand = FALSE
   ) +
-  scale_fill_viridis_d(option = "inferno") +
   labs(
     title = "Crash density by cluster across Victoria",
     x = "Longitude",
@@ -273,7 +273,35 @@ ggsave("output/plots/kmeans_crash_density_by_cluster.png",
        plot = density_plot, width = 8, height = 6, dpi = 300)
 
 
-## 11. Save clustering outputs ------------------------------
+## 11. Weather distribution by cluster ----------------------
+
+weather_by_cluster <- crash_with_clusters %>%
+  count(cluster, weather) %>%            # count crashes by (cluster, weather)
+  group_by(cluster) %>%
+  mutate(prop = n / sum(n))             # turn counts into proportions
+
+weather_plot <- ggplot(weather_by_cluster,
+                       aes(x = weather, y = prop, fill = weather)) +
+  geom_col() +
+  facet_wrap(~ cluster) +
+  labs(
+    title = "Weather conditions by cluster",
+    x = "Weather condition",
+    y = "Proportion of crashes"
+  ) +
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    legend.position = "none"            # optional: colours are shown on x-axis already
+  )
+
+print(weather_plot)
+
+ggsave("output/plots/kmeans_weather_by_cluster.png",
+       plot = weather_plot, width = 8, height = 6, dpi = 300)
+
+
+## 12. Save clustering outputs ------------------------------
 
 write_rds(cluster_with_labels,
           "output/processed/cluster_with_labels.rds")
@@ -284,3 +312,5 @@ write_rds(crash_with_clusters,
           "output/processed/crash_with_clusters.rds")
 write_csv(crash_with_clusters,
           "output/processed/crash_with_clusters.csv")
+
+message("✅ K-means analysis complete: outputs written to output/processed/ and plots to output/plots/")
