@@ -94,7 +94,7 @@ wg$time_of_day_label <- factor(
 )
 
 # ------------------------------------------------------------
-# ✅ BAR PLOT: Frequency by Time-of-Day (Weather + Time Clusters)
+# Bar Plot: Frequency by Time-of-Day (Weather + Time Clusters)
 # ------------------------------------------------------------
 ggplot(wg, aes(x = time_of_day_label, fill = cluster)) +
   geom_bar(position = "dodge") +
